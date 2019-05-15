@@ -63,7 +63,7 @@ with dnnlib.util.open_url(url, cache_dir=config.cache_dir) as f:
     _G, _D, Gs = pickle.load(f)
     
 
-generate_sequence(Gs, 5, 60, 7, '/ffhq_final', timing_linear)
+generate_sequence(Gs, 5, 3, 7, '/ffhq_demo', timing_linear)
 
 # for seed in range(40, 50):
 #     generate_sequence(Gs, 5, 60, seed, '/ffhq_seed/ffhq_' + str(seed), timing_linear)
