@@ -29,12 +29,17 @@ class PerceptualModel:
         self.ref_img_features = None
         self.features_weight = None
         self.loss = None
+        
+        self.ref_img = None
 
     def build_perceptual_model(self, generated_image_tensor):
         vgg16 = VGG16(include_top=False, input_shape=(self.img_size, self.img_size, 3))
         self.perceptual_model = Model(vgg16.input, vgg16.layers[self.layer].output)
         generated_image = preprocess_input(tf.image.resize_images(generated_image_tensor,
                                                                   (self.img_size, self.img_size), method=1))
+        self.ref_img = tf.get_variable('ref_img', shape=generated_image.shape, 
+                                               dtype='float32', initializer=tf.initializers.zeros())
+           
         generated_img_features = self.perceptual_model(generated_image)
 
         self.ref_img_features = tf.get_variable('ref_img_features', shape=generated_img_features.shape,
@@ -45,11 +50,21 @@ class PerceptualModel:
 
         self.loss = tf.losses.mean_squared_error(self.features_weight * self.ref_img_features,
                                                  self.features_weight * generated_img_features) / 82890.0
+        
+#         self.L2_loss = tf.losses.mean_squared_error(labels=self.ref_img, predictions=generated_image) / 10000.0
 
     def set_reference_images(self, images_list):
         assert(len(images_list) != 0 and len(images_list) <= self.batch_size)
         loaded_image = load_images(images_list, self.img_size)
+#         print("DEBUG", loaded_image.shape)
+#         print("DEBUG", loaded_image[0][0])
+#         print("DEBUG", np.max(loaded_image))
+#         print("DEBUG", np.min(loaded_image))
         image_features = self.perceptual_model.predict_on_batch(loaded_image)
+#         print("DEBUG", image_features.shape)
+#         print("DEBUG", image_features[0][0])
+#         print("DEBUG", np.max(image_features))
+#         print("DEBUG", np.min(image_features))
 
         # in case if number of images less than actual batch size
         # can be optimized further
@@ -65,12 +80,16 @@ class PerceptualModel:
 
             image_features = np.vstack([image_features, np.zeros(empty_features_shape)])
 
+        self.sess.run(tf.assign(self.ref_img, loaded_image))
         self.sess.run(tf.assign(self.features_weight, weight_mask))
         self.sess.run(tf.assign(self.ref_img_features, image_features))
 
     def optimize(self, vars_to_optimize, iterations=500, learning_rate=1.):
         vars_to_optimize = vars_to_optimize if isinstance(vars_to_optimize, list) else [vars_to_optimize]
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+#         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+#         print("DEBUG", optimizer.variables())
+#         self.sess.run(tf.variables_initializer(optimizer.variables()))
         min_op = optimizer.minimize(self.loss, var_list=[vars_to_optimize])
         for _ in range(iterations):
             _, loss = self.sess.run([min_op, self.loss])
