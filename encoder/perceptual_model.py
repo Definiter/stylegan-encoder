@@ -51,7 +51,7 @@ class PerceptualModel:
         self.loss = tf.losses.mean_squared_error(self.features_weight * self.ref_img_features,
                                                  self.features_weight * generated_img_features) / 82890.0
         
-#         self.L2_loss = tf.losses.mean_squared_error(labels=self.ref_img, predictions=generated_image) / 10000.0
+        self.L2_loss = tf.losses.mean_squared_error(labels=self.ref_img, predictions=generated_image) / 10000.0
 
     def set_reference_images(self, images_list):
         assert(len(images_list) != 0 and len(images_list) <= self.batch_size)
@@ -90,7 +90,7 @@ class PerceptualModel:
 #         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 #         print("DEBUG", optimizer.variables())
 #         self.sess.run(tf.variables_initializer(optimizer.variables()))
-        min_op = optimizer.minimize(self.loss, var_list=[vars_to_optimize])
+        min_op = optimizer.minimize(self.loss + self.L2_loss, var_list=[vars_to_optimize])
         for _ in range(iterations):
             _, loss = self.sess.run([min_op, self.loss])
             yield loss
